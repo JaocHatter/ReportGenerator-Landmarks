@@ -1,0 +1,8 @@
+google-generativeai
+opencv-python
+numpy
+Pillow # Útil para manejo de imágenes con Gemini
+reportlab # Para generación de PDF
+matplotlib # Para mapas básicos
+# langchain # Si decides usarlo para orquestación más compleja
+# langchain_google_genai # Para integración de Gemini con Langchain
