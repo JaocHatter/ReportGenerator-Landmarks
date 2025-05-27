@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 import time
 
 try:
-    GOOGLE_API_KEY = os.getenv("AIzaSyCcTBlLvSZ8MqTlwIqve-NWsm8hVpH0ZwM")
+    GOOGLE_API_KEY = os.getenv("x")
     if not GOOGLE_API_KEY:
         raise ValueError("La variable de entorno GOOGLE_API_KEY no está configurada.")
     genai.configure(api_key=GOOGLE_API_KEY)
