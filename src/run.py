@@ -28,18 +28,6 @@ def main(video_path: str, pose_data_path: str, mission_id: str):
     start_time = time.time()
     print(f"--- Iniciando Pipeline de Detección de Landmarks para Misión: {mission_id} ---")
 
-    robot_poses = load_sample_robot_poses(pose_data_path)
-    mission_input = MissionInputState(
-        video_path=video_path,
-        robot_poses=robot_poses,
-        mission_id=mission_id
-    )
-
-    preprocessor = PreprocessorAgent(output_dir="output/temp_frames")
-    analyst = AnalystAgent()
-    identifier = IdentifierAgent(output_landmark_image_dir="output/landmark_images")
-    report_generator = ReportGeneratorAgent(output_dir="output/reports", map_image_dir="output/map_images")
-
     base_output_dir = "output"
     temp_segment_dir = os.path.join(base_output_dir, "temp_video_segments")
     landmark_image_dir = os.path.join(base_output_dir, "landmark_images")
@@ -80,7 +68,7 @@ def main(video_path: str, pose_data_path: str, mission_id: str):
     if not analyzed_segments: # Podría ser una lista vacía si no hay nada o error
         print("El análisis de video no produjo resultados o falló. Revisar logs del AnalystAgent.")
     
-    found_any_observations = any(seg.identified_landmark_observations for seg in analyzed_segments)
+    found_any_observations = any(seg["identified_landmark_observations"] for seg in analyzed_segments)
     if not found_any_observations and analyzed_segments: # Hay segmentos analizados, pero sin observaciones
         print("AnalystAgent completado, pero no se encontraron observaciones de landmarks en los segmentos.")
 

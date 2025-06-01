@@ -47,13 +47,11 @@ class IdentifierAgent:
         if ret and frame is not None:
             try:
                 cv2.imwrite(output_image_path, frame)
-                # print(f"Fotograma para landmark guardado en: {output_image_path}") # Log opcional
                 return True
             except Exception as e:
                 print(f"Error _extract_specific_frame: Al guardar fotograma extraído en {output_image_path}: {e}")
                 return False
         else:
-            # Intentar con el primer frame si el timestamp falla y es > 0
             if timestamp_ms > 0:
                 print(f"Advertencia _extract_specific_frame: No se pudo leer el fotograma en {timestamp_ms}ms del video {video_path}. Intentando con el primer fotograma.")
                 cap = cv2.VideoCapture(video_path)
@@ -170,21 +168,21 @@ ANALISIS_CONTEXTUAL: [
             )
 
         # Asumimos que todos los segmentos son de la misma misión
-        mission_id = analyzed_segments_batch[0].processed_segment_info['mission_id']
+        mission_id = analyzed_segments_batch[0]["processed_segment_info"]['mission_id']
         
         landmark_counter = 0
 
         for analyzed_segment in analyzed_segments_batch:
-            segment_info = analyzed_segment.processed_segment_info
+            segment_info = analyzed_segment["processed_segment_info"]
             original_video_segment_path = segment_info['video_segment_path']
             # El timestamp de inicio del segmento actual dentro del video completo de la misión
             segment_start_time_in_mission_ms = segment_info['start_time_in_original_video_ms']
 
-            if not analyzed_segment.identified_landmark_observations:
+            if not analyzed_segment["identified_landmark_observations"]:
                 # print(f"Agente Identificador: Segmento {segment_info['video_segment_path']} no contiene observaciones de landmarks.")
                 continue
 
-            for obs in analyzed_segment.identified_landmark_observations:
+            for obs in analyzed_segment["identified_landmark_observations"]:
                 landmark_counter += 1
                 landmark_id_str = f"LM_{mission_id}_{landmark_counter:03d}"
                 

@@ -11,7 +11,7 @@ class PreprocessorAgent:
         self.segment_output_dir = segment_output_dir
         if not os.path.exists(self.segment_output_dir):
             os.makedirs(self.segment_output_dir, exist_ok=True)
-        self.SEGMENT_DURATION_SECONDS = 5 * 60
+        self.SEGMENT_DURATION_SECONDS = 60
 
     def _get_video_duration_seconds(self, video_path: str) -> Optional[float]:
         """Obtiene la duración total del video en segundos usando ffprobe."""
@@ -83,8 +83,6 @@ class PreprocessorAgent:
         for i in range(num_segments):
             segment_start_seconds = i * self.SEGMENT_DURATION_SECONDS
             
-            # Determinar la duración real de este segmento
-            # (puede ser menor que SEGMENT_DURATION_SECONDS para el último segmento)
             current_segment_duration = min(self.SEGMENT_DURATION_SECONDS, total_duration_seconds - segment_start_seconds)
 
             if current_segment_duration <= 0: # Evitar segmentos de duración cero si algo salió mal

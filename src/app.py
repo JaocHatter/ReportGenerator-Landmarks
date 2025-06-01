@@ -3,8 +3,6 @@ import sys
 import os
 
 def main():
-    # Pasa todos los argumentos de app.py a run.py
-    # Asegúrate que run.py sea ejecutable o llámalo con python
     run_script_path = os.path.join(os.path.dirname(__file__), "run.py")
     command = [sys.executable, run_script_path] + sys.argv[1:]
     
@@ -18,6 +16,6 @@ def main():
 
 if __name__ == "__main__":
     # Ejemplo de cómo ejecutarlo:
-    # python app.py path/to/your/video.mp4 --mission_id test001
-    # python app.py path/to/your/video.mp4 --pose_file path/to/poses.json --mission_id test002
+    # python app.py /home/jaoc/Desktop/Projects/ERC/videos/erc_video_test.mp4 --mission_id test001
+    # python app.py /home/jaoc/Desktop/Projects/ERC/videos/erc_video_test.mp4 --pose_file path/to/poses.json --mission_id test002
     main()
