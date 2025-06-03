@@ -28,7 +28,7 @@ def main(video_path: str, pose_data_path: str, mission_id: str):
     start_time = time.time()
     print(f"--- Iniciando Pipeline de Detección de Landmarks para Misión: {mission_id} ---")
 
-    base_output_dir = "output"
+    base_output_dir = "output2"
     temp_segment_dir = os.path.join(base_output_dir, "temp_video_segments")
     landmark_image_dir = os.path.join(base_output_dir, "landmark_images")
     report_dir = os.path.join(base_output_dir, "reports")

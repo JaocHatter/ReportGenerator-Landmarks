@@ -51,10 +51,8 @@ class ModelExecutionWrapper:
         'contents' can be a string (for text prompts) or a list (for multimodal prompts).
         """
         if not self.client:
-            # This case should ideally be caught by the __init__ or global client check
             raise RuntimeError("Cliente de Gemini no está disponible en ModelExecutionWrapper.")
         
-        # print(f"DEBUG: ModelExecutionWrapper.generate_content con modelo '{self.model_to_call}' y contents: {type(contents)}")
         return self.client.models.generate_content(model=self.model_to_call, contents=contents)
 
 def get_gemini_model() -> ModelExecutionWrapper | None:
@@ -172,7 +170,7 @@ def generate_analysis_from_video_file(
         if uploaded_file_resource and uploaded_file_resource.name:
             try:
                 print(f"INFO: Intentando borrar el archivo {uploaded_file_resource.name} de Gemini después de su uso...")
-                gemini_client_instance.delete_file(name=uploaded_file_resource.name)
+                gemini_client_instance.files.delete(name=uploaded_file_resource.name)
                 print(f"INFO: Archivo {uploaded_file_resource.name} borrado de Gemini.")
             except Exception as e_del:
                 print(f"WARN: No se pudo borrar el archivo {uploaded_file_resource.name} de Gemini: {e_del}")

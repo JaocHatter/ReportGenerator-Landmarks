@@ -142,8 +142,6 @@ class PreprocessorAgent:
                 print(f"Error al crear el segmento {i+1} con ffmpeg:")
                 print(f"Comando: {' '.join(e.cmd)}")
                 print(f"Stderr: {e.stderr.decode() if e.stderr else 'N/A'}")
-                # Continuar con el siguiente segmento o detenerse? Por ahora, continuamos si es posible.
-                # Pero si un segmento falla, puede ser problemático.
             except Exception as e_gen:
                 print(f"Error inesperado al procesar el segmento {i+1}: {e_gen}")
 

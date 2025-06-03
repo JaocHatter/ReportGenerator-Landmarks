@@ -14,40 +14,44 @@ class AnalystAgent:
             print("AnalystAgent: ADVERTENCIA - Modelo Gemini no inicializado.")
 
     def _build_prompt_for_video_analysis(self, segment_info: PreprocessedVideoSegmentState) -> str:
-        # Prompt mejorado para análisis de VIDEO ERC 2025
         prompt = f"""
 Eres un sistema avanzado de análisis de video para un rover en Marte (ERC 2025).
 Analiza el siguiente VIDEO COMPLETO (o segmento de video) tomado por el rover.
 El segmento de video cubre desde {segment_info['start_time_in_original_video_ms']}ms hasta {segment_info['end_time_in_original_video_ms']}ms del video original de la misión.
 Los datos de pose del robot para este segmento han sido registrados.
-
 Tu tarea es:
-1.  Revisa TODO el video. Identifica CUIDADOSAMENTE cualquier objeto que NO parezca ser terreno natural marciano.
+    Revisa TODO el video. Identifica CUIDADOSAMENTE cualquier objeto que NO parezca ser terreno natural marciano (rocas, arena, polvo, colinas distantes, cielo).
     Busca específicamente:
-    * Objetos hechos por humanos o artificiales.
-    * Herramientas, equipos, contenedores, infraestructura.
-    * Objetos con colores muy distintivos del entorno.
-    * Objetos con formas geométricas regulares o complejas.
-    * Cualquier cosa que consideres un 'Landmark' potencial según las reglas del ERC.
-2.  Para cada OBJETO POTENCIALMENTE NO MARCIANO (candidato a Landmark) que identifiques en el video:
-    * Proporciona una breve descripción del objeto.
-    * Explica por qué crees que podría ser un Landmark (distintividad visual, forma, color, comportamiento temporal).
-    * Indica el **timestamp de inicio** (en milisegundos, relativo AL INICIO DE ESTE VIDEO/SEGMENTO) donde el objeto se vuelve visible por primera vez o es identificable.
-    * Indica el **timestamp de fin** (en milisegundos, relativo AL INICIO DE ESTE VIDEO/SEGMENTO) donde el objeto deja de ser visible o relevante.
-    * Indica el **timestamp de mejor visibilidad** (en milisegundos, relativo AL INICIO DE ESTE VIDEO/SEGMENTO) donde el objeto se ve más claro o es más fácil de identificar.
-    * Comenta sobre su estabilidad (ej. "estático durante toda la observación", "se mueve lentamente").
+        - Objetos hechos por humanos o artificiales.
+        - Herramientas, equipos, contenedores, infraestructura.
+        - Objetos con colores muy distintivos del entorno (colores brillantes, metálicos no oxidados).
+        - Objetos con formas geométricas regulares o complejas que no sean naturales.
+        -Cualquier cosa que consideres un 'Landmark' potencial según las reglas del ERC (objetos físicos, no características geológicas primarias).
 
+    IMPORTANTE: IGNORA LOS ARTEFACTOS VISUALES DE LA CÁMARA. No consideres como Landmarks los siguientes fenómenos, ya que son producto de la cámara o la transmisión y no objetos reales en el entorno:
+        - Distorsiones de lente (efecto "ojo de pez" en los bordes, curvaturas inusuales).
+        - "Digital video artifacts" o artefactos de compresión (bloques, pixelación excesiva).
+        - Líneas horizontales o verticales de colores puros o patrones de interferencia que claramente no son parte de un objeto físico.
+        - Destellos de lente (lens flares) o reflejos internos de la óptica.
+        - Manchas en la lente o polvo que parezcan estar "flotando" o fijas en la imagen independientemente del movimiento del rover.
+    Para cada OBJETO POTENCIALMENTE NO MARCIANO (candidato a Landmark) que identifiques en el video (y que NO sea un artefacto de cámara):
+        - Proporciona una breve descripción del objeto.
+        - Explica por qué crees que podría ser un Landmark (distintividad visual, forma, color, comportamiento temporal, y que no es un artefacto de la cámara).
+        - Indica el timestamp de inicio (en milisegundos, relativo AL INICIO DE ESTE VIDEO/SEGMENTO) donde el objeto se vuelve visible por primera vez o es identificable.
+        - Indica el timestamp de fin (en milisegundos, relativo AL INICIO DE ESTE VIDEO/SEGMENTO) donde el objeto deja de ser visible o relevante.
+        - Indica el timestamp de mejor visibilidad (en milisegundos, relativo AL INICIO DE ESTE VIDEO/SEGMENTO) donde el objeto se ve más claro o es más fácil de identificar.
+        - Comenta sobre su estabilidad (ej. "estático durante toda la observación", "se mueve lentamente").
 Formato de salida esperado para CADA candidato a landmark (repite este bloque para cada uno):
 LANDMARK_OBSERVATION_START
 CANDIDATE_ID: [un ID único corto para esta observación, ej: LM_OBS_XYZ]
 OBJECT_DESCRIPTION: [descripción]
-REASONING_FOR_CANDIDACY: [por qué es candidato, incluyendo estabilidad y apariencia]
+REASONING_FOR_CANDIDACY: [por qué es candidato, incluyendo estabilidad y apariencia, y confirmación de que no es un artefacto de cámara]
 START_TIMESTAMP_MS: [timestamp_inicio_ms]
 END_TIMESTAMP_MS: [timestamp_fin_ms]
 BEST_VISIBILITY_TIMESTAMP_MS: [timestamp_mejor_visibilidad_ms]
 LANDMARK_OBSERVATION_END
 
-Si no hay candidatos claros en todo el video/segmento, indica "No se encontraron Landmarks potenciales en este segmento."
+Si no hay candidatos claros en todo el video/segmento (que no sean artefactos de cámara), indica "No se encontraron Landmarks potenciales en este segmento."
 """
         return prompt
 
