@@ -15,43 +15,43 @@ class AnalystAgent:
 
     def _build_prompt_for_video_analysis(self, segment_info: PreprocessedVideoSegmentState) -> str:
         prompt = f"""
-        You are an advanced video analysis system for a rover on Mars (ERC 2025).
-        Analyze the following COMPLETE VIDEO (or video segment) taken by the rover.
-        The video segment covers from {segment_info['start_time_in_original_video_ms']}ms to {segment_info['end_time_in_original_video_ms']}ms of the original mission video.
-        The robot's pose data for this segment has been recorded.
-        Your task is:
-            Review the ENTIRE video. CAREFULLY identify any objects that DO NOT appear to be natural Martian terrain (rocks, sand, dust, distant hills, sky).
-            Specifically look for:
-                - Human-made or artificial objects.
-                - Tools, equipment, containers, infrastructure.
-                - Objects with colors very distinct from the environment (bright colors, non-oxidized metallic).
-                - Objects with regular or complex geometric shapes that are not natural.
-                - Anything you consider a potential 'Landmark' according to ERC rules (physical objects, not primary geological features).
+        Analyze the provided video segment, which covers the interval from `{segment_info['start_time_in_original_video_ms']}`ms to `{segment_info['end_time_in_original_video_ms']}` of the original mission video.
 
-            IMPORTANT: IGNORE CAMERA VISUAL ARTIFACTS. Do not consider the following phenomena as Landmarks, as they are products of the camera or transmission and not real objects in the environment:
-                - Lens distortions ("fisheye" effect at the edges, unusual curvatures).
-                - "Digital video artifacts" or compression artifacts (blocks, excessive pixelation).
-                - Horizontal or vertical lines of pure colors or interference patterns that are clearly not part of a physical object.
-                - Lens flares or internal optical reflections.
-                - Lens smudges or dust that appear to be "floating" or fixed in the image regardless of rover movement.
-            For each POTENTIALLY NON-MARTIAN OBJECT (Landmark candidate) you identify in the video (and which is NOT a camera artifact):
-                - Provide a brief description of the object.
-                - Explain why you believe it could be a Landmark (visual distinctiveness, shape, color, temporal behavior, and confirmation that it is not a camera artifact).
-                - Indicate the start timestamp (in milliseconds, relative TO THE START OF THIS VIDEO/SEGMENT) where the object first becomes visible or identifiable.
-                - Indicate the end timestamp (in milliseconds, relative TO THE START OF THIS VIDEO/SEGMENT) where the object is no longer visible or relevant.
-                - Indicate the best visibility timestamp (in milliseconds, relative TO THE START OF THIS VIDEO/SEGMENT) where the object is seen most clearly or is easiest to identify.
-                - Comment on its stability (e.g., "static throughout the observation," "moves slowly").
-        Expected output format for EACH landmark candidate (repeat this block for each one):
+        **Primary Objective:**
+        Your task is to review the **ENTIRE** video segment and identify any objects that are clearly **NOT** natural Martian terrain (like rocks, sand, or dust).
+
+        **Inclusion Criteria:**
+        A candidate object **MUST MEET ALL** of the following conditions to be reported:
+
+        1.  It is an **artificial or human-made object** (e.g., tool, equipment, container, debris).
+        2.  It is **fully and clearly visible** within the frame.
+        3.  It appears **very close** to the camera.
+        4.  It occupies a **significant portion** of the video frame.
+
+        **Exclusion Criteria (CRITICAL):**
+        **DO NOT REPORT CAMERA ARTIFACTS.** The following phenomena are products of the camera or transmission and must be **IGNORED**:
+
+        * **Lens distortions:** "Fisheye" effects or unusual curvatures at the edges.
+        * **Digital artifacts:** Compression blocks or excessive pixelation.
+        * **Image interference:** Horizontal/vertical lines or patterns not part of a physical object.
+        * **Optical effects:** Lens flares or internal reflections.
+        * **Lens contamination:** Smudges or dust particles that are fixed or "float" on the camera lens.
+
+        -----
+        **Output Format:**
+        For **EACH** valid landmark identified, use the following structured block. Be concise and direct.
+
+        ```
         LANDMARK_OBSERVATION_START
-        CANDIDATE_ID: [a short unique ID for this observation, e.g., LM_OBS_XYZ]
-        OBJECT_DESCRIPTION: [description]
-        REASONING_FOR_CANDIDACY: [why it's a candidate, including stability and appearance, and confirmation that it's not a camera artifact]
+        NAME: [A brief but descriptive name for the object]
         START_TIMESTAMP_MS: [start_timestamp_ms]
         END_TIMESTAMP_MS: [end_timestamp_ms]
-        BEST_VISIBILITY_TIMESTAMP_MS: [best_visibility_timestamp_ms]
+        BEST_VISIBILITY_TIMESTAMP_MS: [The timestamp in milliseconds (ms) where the object best meets all inclusion criteria]
         LANDMARK_OBSERVATION_END
+        ```
 
-        If no clear candidates are found in the entire video/segment (that are not camera artifacts), state "No potential Landmarks found in this segment."
+        If **NO** objects meeting **ALL** the above criteria are found in the entire segment, your **ONLY** response should be:
+        `No significant landmarks found in this segment.`
         """
         return prompt
 
@@ -60,21 +60,14 @@ class AnalystAgent:
         clean_response_text = response_text.strip()
 
         parts = clean_response_text.split("LANDMARK_OBSERVATION_START")
-        for part_idx, part in enumerate(parts[1:]):
+        for part in parts[1:]:
             obs_data_str = part.split("LANDMARK_OBSERVATION_END")[0].strip()
             
-            cand_id = f"lm_obs_{part_idx}_{uuid.uuid4().hex[:4]}"
-            desc = "N/A"
-            reasoning = "N/A"
             start_ts, end_ts, best_ts = 0, 0, 0
 
             for line in obs_data_str.split('\n'):
-                if line.startswith("CANDIDATE_ID:"):
-                    cand_id = line.split("CANDIDATE_ID:", 1)[1].strip()
-                elif line.startswith("OBJECT_DESCRIPTION:"):
-                    desc = line.split("OBJECT_DESCRIPTION:", 1)[1].strip()
-                elif line.startswith("REASONING_FOR_CANDIDACY:"):
-                    reasoning = line.split("REASONING_FOR_CANDIDACY:", 1)[1].strip()
+                if line.startswith("NAME:"):
+                    name = line.split("NAME:", 1)[1].strip()
                 elif line.startswith("START_TIMESTAMP_MS:"):
                     try: start_ts = int(line.split("START_TIMESTAMP_MS:", 1)[1].strip())
                     except ValueError: start_ts = 0
@@ -86,9 +79,7 @@ class AnalystAgent:
                     except ValueError: best_ts = 0
             
             observations.append(LandmarkObservation(
-                landmark_candidate_id=cand_id,
-                object_description=desc,
-                reasoning_for_candidacy=reasoning,
+                landmark_name=name,
                 start_timestamp_in_segment_ms=start_ts,
                 end_timestamp_in_segment_ms=end_ts,
                 best_visibility_timestamp_in_segment_ms=best_ts

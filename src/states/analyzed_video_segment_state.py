@@ -5,9 +5,7 @@ class LandmarkObservation(TypedDict):
     """
     Información detallada sobre un Landmark observado en el video/segmento.
     """
-    landmark_candidate_id: str 
-    object_description: str
-    reasoning_for_candidacy: str 
+    landmark_name: str 
     start_timestamp_in_segment_ms: int
     end_timestamp_in_segment_ms: int
     best_visibility_timestamp_in_segment_ms: int

@@ -79,7 +79,26 @@ class ModelExecutionWrapper:
                 temperature = 0.5  
                 )
         )
-        return response
+        return response 
+    
+    async def generate_content_from_image(self, prompt: str, image_bytes: bytes) -> types.GenerateContentResponse:
+        response = await self.client.aio.models.generate_content(
+            model = "gemini-2.5-flash",
+            contents = [
+                    types.Part(
+                        inline_data = types.Blob(
+                            data = image_bytes,
+                            mime_type = 'img/png'   
+                            )
+                        )
+                    ,
+                    types.Part(text = prompt)
+            ],
+            config = types.GenerateContentConfig(
+                temperature = 0.5  
+                )
+        )
+        return response 
 
 def get_gemini_model() -> ModelExecutionWrapper | None:
     """

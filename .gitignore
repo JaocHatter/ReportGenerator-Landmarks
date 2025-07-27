@@ -1,3 +1,3 @@
 .env
-src/output/
-src/output2/
+src/outputs/*
+tools/*

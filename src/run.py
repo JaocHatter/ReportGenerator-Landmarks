@@ -103,7 +103,7 @@ def main(video_path: str, pose_data_path: str, mission_id: str):
     all_poses_for_map = mission_input['robot_poses']
     identified_batch = identifier.run(analyzed_segments, all_poses_for_map)
     step_times['identification'] = time.time() - step_start
-
+    
     print("\n---📖 Step 4: Report Generation ---")
     step_start = time.time()
     report_file_path = report_generator.run(identified_batch)
