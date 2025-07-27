@@ -1,7 +1,13 @@
-import google.genai as genai
+import google.genai as genai, types
 import os
 from typing import List, Dict, Any 
 import time
+import pathlib
+import google.genai as genai
+from google.genai import types
+
+# TODO
+# Add asynchronism
 
 gemini_client_instance = None
 INITIALIZATION_ERROR_MESSAGE = None
@@ -51,9 +57,29 @@ class ModelExecutionWrapper:
         'contents' can be a string (for text prompts) or a list (for multimodal prompts).
         """
         if not self.client:
-            raise RuntimeError("Cliente de Gemini no está disponible en ModelExecutionWrapper.")
+            raise RuntimeError("Gemini client not available in ModelExecutionWrapper.")
         
         return self.client.models.generate_content(model=self.model_to_call, contents=contents)
+    
+    async def generate_content_from_video(self, prompt: Any, video_bytes: bytes) -> types.GenerateContentResponse:
+        response = await self.client.aio.models.generate_content(
+            model = "gemini-2.5-flash",
+            contents = [
+                    types.Part(
+                        inline_data = types.Blob(
+                            data = video_bytes,
+                            mime_type = 'video/mp4'   
+                            ),
+                        video_metadata = types.VideoMetadata(fps=5)
+                        )
+                    ,
+                    types.Part(text = prompt)
+            ],
+            config = types.GenerateContentConfig(
+                temperature = 0.5  
+                )
+        )
+        return response
 
 def get_gemini_model() -> ModelExecutionWrapper | None:
     """

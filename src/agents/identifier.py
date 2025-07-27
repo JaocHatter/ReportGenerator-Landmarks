@@ -19,7 +19,7 @@ class IdentifierAgent:
             os.makedirs(self.output_landmark_image_dir, exist_ok=True)
 
         if not self.gemini_model:
-            print("IdentifierAgent: ADVERTENCIA - Modelo Gemini no inicializado. El análisis contextual no funcionará.")
+            print("IdentifierAgent: WARNING - Gemini not initialized. Contextual Analysis won't work.")
 
     def _extract_specific_frame(self, video_path: str, timestamp_ms: int, output_image_path: str) -> bool:
         """
@@ -71,24 +71,24 @@ class IdentifierAgent:
 
     def _build_contextual_analysis_prompt(self, landmark_description: str, category_suggestion: str) -> str:
         """
-        Construye el prompt para el análisis contextual del landmark por Gemini.
+        Constructs the prompt for the contextual analysis of the landmark by Gemini.
         """
         return f"""
-Eres un experto en misiones de exploración de Marte (ERC 2025).
-Se ha identificado un objeto en Marte con la siguiente descripción y categoría sugerida:
-Categoría Sugerida: {category_suggestion if category_suggestion else "No especificada"}
-Descripción Visual Observada: "{landmark_description}"
+        You are an expert in Mars exploration missions (ERC 2025).
+        An object has been identified on Mars with the following description and suggested category:
+        Suggested Category: {category_suggestion if category_suggestion else "Not specified"}
+        Observed Visual Description: "{landmark_description}"
 
-Por favor, proporciona un análisis contextual conciso para el reporte final, siguiendo este formato estrictamente:
-NOMBRE_OBJETO: [Nombre o categoría refinada del objeto. Sé específico si es posible. Ej: "Taladro geológico de mano", "Panel de control de módulo científico", "Fragmento de escudo térmico".]
-DESCRIPCION_DETALLADA: [Elabora brevemente sobre la descripción visual observada, añadiendo detalles inferidos si es lógico. Si la descripción ya es buena, puedes refinarla o resumirla.]
-ANALISIS_CONTEXTUAL: [
-    - Origen probable: ¿Es natural de Marte? Si no, ¿podría ser de una misión anterior, actual, o es completamente anómalo?
-    - Utilidad potencial: ¿Podría este objeto ser útil para la misión actual del rover, para futuras misiones o una base? ¿Cómo?
-    - Relevancia/Importancia: ¿Qué tan significativo es este hallazgo en el contexto de la exploración de Marte?
-    - Peligros/Consideraciones: ¿Presenta algún peligro obvio o consideración especial?
-]
-"""
+        Please provide a concise contextual analysis for the final report, STRICTLY following this format (No markdown):
+        OBJECT_NAME: [Name or refined category of the object. Be specific if possible. E.g., "Handheld geological drill," "Scientific module control panel," "Heat shield fragment."]
+        DETAILED_DESCRIPTION: [Briefly elaborate on the observed visual description, adding inferred details if logical. If the description is already good, you can refine or summarize it.]
+        CONTEXTUAL_ANALYSIS: [
+            - Probable origin: Is it natural to Mars? If not, could it be from a previous or current mission, or is it completely anomalous?
+            - Potential utility: Could this object be useful for the current rover mission, for future missions, or a base? How?
+            - Relevance/Importance: How significant is this finding in the context of Mars exploration?
+            - Dangers/Considerations: Does it present any obvious dangers or special considerations?
+        ]
+        """
 
     def _parse_contextual_response(self, response_text: str, default_description: str) -> Tuple[str, str, str]:
         """
@@ -97,7 +97,7 @@ ANALISIS_CONTEXTUAL: [
         """
         obj_name = default_description[:70] # Un default razonable
         det_desc = default_description
-        ctx_analysis = "Análisis contextual no disponible o no parseable."
+        ctx_analysis = "Contextual Analysis not available"
 
         # Eliminar bloques de código markdown si existen
         clean_text = response_text.strip()
@@ -106,6 +106,7 @@ ANALISIS_CONTEXTUAL: [
             if clean_text.lower().startswith("json"): 
                  clean_text = clean_text[len("json"):].strip()
 
+        print(response_text)
 
         current_section = None
         temp_det_desc = []
@@ -113,15 +114,15 @@ ANALISIS_CONTEXTUAL: [
 
         for line in clean_text.split('\n'):
             line_stripped = line.strip()
-            if line_stripped.startswith("NOMBRE_OBJETO:"):
-                obj_name = line_stripped.split("NOMBRE_OBJETO:", 1)[1].strip()
+            if line_stripped.startswith("OBJECT_NAME:"):
+                obj_name = line_stripped.split("OBJECT_NAME:", 1)[1].strip()
                 current_section = "name"
-            elif line_stripped.startswith("DESCRIPCION_DETALLADA:"):
-                det_desc_part = line_stripped.split("DESCRIPCION_DETALLADA:", 1)[1].strip()
+            elif line_stripped.startswith("DETAILED_DESCRIPTION:"):
+                det_desc_part = line_stripped.split("DETAILED_DESCRIPTION:", 1)[1].strip()
                 if det_desc_part: temp_det_desc.append(det_desc_part)
                 current_section = "description"
-            elif line_stripped.startswith("ANALISIS_CONTEXTUAL:"):
-                ctx_analysis_part = line_stripped.split("ANALISIS_CONTEXTUAL:", 1)[1].strip()
+            elif line_stripped.startswith("CONTEXTUAL_ANALYSIS:"):
+                ctx_analysis_part = line_stripped.split("CONTEXTUAL_ANALYSIS:", 1)[1].strip()
                 if ctx_analysis_part: temp_ctx_analysis.append(ctx_analysis_part)
                 current_section = "context"
             elif current_section == "description" and line_stripped:

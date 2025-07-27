@@ -7,10 +7,10 @@ def main():
     command = [sys.executable, run_script_path] + sys.argv[1:]
     
     try:
-        print(f"Ejecutando: {' '.join(command)}")
+        print(f"Executing: {' '.join(command)}")
         subprocess.run(command, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"Error al ejecutar run.py: {e}")
+        print(f"Error executing run.py: {e}")
     except FileNotFoundError:
         print(f"Error: No se encontró el script {run_script_path}. Asegúrate que está en el mismo directorio.")
 
