@@ -23,7 +23,7 @@ class AnalystAgent:
         **Inclusion Criteria:**
         A candidate object **MUST MEET ALL** of the following conditions to be reported:
 
-        1.  It is an **artificial or human-made object** (e.g., tool, equipment, container, debris).
+        1.  It is an **artificial or human-made object** or an inusual object in the martian terrain.
         2.  It is **fully and clearly visible** within the frame.
         3.  It appears **very close** to the camera.
         4.  It occupies a **significant portion** of the video frame.
@@ -94,7 +94,7 @@ class AnalystAgent:
                 identified_landmark_observations=[]
             )
 
-        print(f"AnalystAgent: Extracting data from {segment_state['video_segment_path']} for the mission {segment_state['mission_id']}...")
+        print(f"Analyst Agent: Extracting data from {segment_state['video_segment_path']} for the mission {segment_state['mission_id']}...")
         
         landmark_observations = self._parse_gemini_video_response(gemini_response_text)
         
@@ -109,14 +109,16 @@ class AnalystAgent:
         results = await asyncio.gather(*api_tasks)
         return results
 
-    def run(self, video_segments: List[PreprocessedVideoSegmentState]) -> List[AnalyzedVideoSegmentState]:
+    async def run(self, video_segments: List[PreprocessedVideoSegmentState]) -> List[AnalyzedVideoSegmentState]:
         print(f"Analyst Agent: Starting analysis for {len(video_segments)} segment(s)...")
         analyzed_segments_list: List[AnalyzedVideoSegmentState] = []
         segments_prompt_video = [(self._build_prompt_for_video_analysis(segment_state), open(segment_state["video_segment_path"], 'rb').read()) \
                                  for segment_state in video_segments]
         
         # running asynchronously
-        gemini_responses = asyncio.run(self.analysis_responses(segments_prompt_video))
+        gemini_responses = await self.analysis_responses(segments_prompt_video)
+
+        print(gemini_responses[0].text)
 
         for segment, response in zip(video_segments, gemini_responses):
             analyzed_segment = self.analyze_video_segment(
@@ -126,3 +128,4 @@ class AnalystAgent:
             analyzed_segments_list.append(analyzed_segment)
         print(f"Analyst Agent: Analysis complete.")
         return analyzed_segments_list
+    

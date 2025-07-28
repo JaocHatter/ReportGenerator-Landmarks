@@ -4,6 +4,7 @@ import json
 from states import MissionInputState, RobotPose
 from agents import PreprocessorAgent, AnalystAgent, IdentifierAgent, ReportGeneratorAgent
 import os
+import asyncio
 
 def load_sample_robot_poses(pose_file_path: str = None) -> list[RobotPose]:
     """Carga poses de un archivo JSON o devuelve datos de ejemplo."""
@@ -49,14 +50,14 @@ def print_ascii_art():
     """
     print(art)
 
-def main(video_path: str, pose_data_path: str, mission_id: str):
+async def main(video_path: str, pose_data_path: str, mission_id: str):
     pipeline_start_time = time.time()
     step_times = {}
     
     print_ascii_art()
     print(f"---🚀 Starting landmark detection pipeline: {mission_id} ---")
 
-    base_output_dir = "outputs/output5"
+    base_output_dir = "outputs/output1"
     temp_segment_dir = os.path.join(base_output_dir, "temp_video_segments")
     landmark_image_dir = os.path.join(base_output_dir, "landmark_images")
     report_dir = os.path.join(base_output_dir, "reports")
@@ -89,7 +90,7 @@ def main(video_path: str, pose_data_path: str, mission_id: str):
 
     print(f"\n---🤖 Step 2: Video Analysis with Gemini ---")
     step_start = time.time()
-    analyzed_segments = analyst.run(preprocessed_video_segments)
+    analyzed_segments = await analyst.run(preprocessed_video_segments)
     step_times['analysis'] = time.time() - step_start
     if not analyzed_segments: 
         print("Video Analysis has failed. Review AnalystAgents logs")
@@ -101,7 +102,7 @@ def main(video_path: str, pose_data_path: str, mission_id: str):
     print("\n---🧠 Step 3: Landmarks identification and contextualization ---")
     step_start = time.time()
     all_poses_for_map = mission_input['robot_poses']
-    identified_batch = identifier.run(analyzed_segments, all_poses_for_map)
+    identified_batch = await identifier.run(analyzed_segments, all_poses_for_map)
     step_times['identification'] = time.time() - step_start
     
     print("\n---📖 Step 4: Report Generation ---")
@@ -131,4 +132,4 @@ if __name__ == "__main__":
     if not os.path.exists(args.video_path):
         print(f"Error: video in '{args.video_path}' was not found.")
     else:
-        main(args.video_path, args.pose_file, args.mission_id)
+        asyncio.run(main(args.video_path, args.pose_file, args.mission_id))

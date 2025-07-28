@@ -51,7 +51,7 @@ class ModelExecutionWrapper:
             self.model_to_call = model_name_str
         print(f"INFO: ModelExecutionWrapper inicializado para el modelo: {self.model_to_call}")
 
-    def generate_content(self, contents: Any) -> genai.types.GenerateContentResponse:
+    def generate_content(self, contents: Any) -> types.GenerateContentResponse:
         """
         Wraps the client.generate_content call.
         'contents' can be a string (for text prompts) or a list (for multimodal prompts).
@@ -88,10 +88,9 @@ class ModelExecutionWrapper:
                     types.Part(
                         inline_data = types.Blob(
                             data = image_bytes,
-                            mime_type = 'img/png'   
+                            mime_type = 'image/jpeg'   
                             )
-                        )
-                    ,
+                        ),
                     types.Part(text = prompt)
             ],
             config = types.GenerateContentConfig(
