@@ -1,7 +1,13 @@
-import google.genai as genai
+import google.genai as genai, types
 import os
 from typing import List, Dict, Any 
 import time
+import pathlib
+import google.genai as genai
+from google.genai import types
+
+# TODO
+# Add asynchronism
 
 gemini_client_instance = None
 INITIALIZATION_ERROR_MESSAGE = None
@@ -45,17 +51,53 @@ class ModelExecutionWrapper:
             self.model_to_call = model_name_str
         print(f"INFO: ModelExecutionWrapper inicializado para el modelo: {self.model_to_call}")
 
-    def generate_content(self, contents: Any) -> genai.types.GenerateContentResponse:
+    def generate_content(self, contents: Any) -> types.GenerateContentResponse:
         """
         Wraps the client.generate_content call.
         'contents' can be a string (for text prompts) or a list (for multimodal prompts).
         """
         if not self.client:
-            # This case should ideally be caught by the __init__ or global client check
-            raise RuntimeError("Cliente de Gemini no está disponible en ModelExecutionWrapper.")
+            raise RuntimeError("Gemini client not available in ModelExecutionWrapper.")
         
-        # print(f"DEBUG: ModelExecutionWrapper.generate_content con modelo '{self.model_to_call}' y contents: {type(contents)}")
         return self.client.models.generate_content(model=self.model_to_call, contents=contents)
+    
+    async def generate_content_from_video(self, prompt: Any, video_bytes: bytes) -> types.GenerateContentResponse:
+        response = await self.client.aio.models.generate_content(
+            model = "gemini-2.5-flash",
+            contents = [
+                    types.Part(
+                        inline_data = types.Blob(
+                            data = video_bytes,
+                            mime_type = 'video/mp4'   
+                            ),
+                        video_metadata = types.VideoMetadata(fps=5)
+                        )
+                    ,
+                    types.Part(text = prompt)
+            ],
+            config = types.GenerateContentConfig(
+                temperature = 0.5  
+                )
+        )
+        return response 
+    
+    async def generate_content_from_image(self, prompt: str, image_bytes: bytes) -> types.GenerateContentResponse:
+        response = await self.client.aio.models.generate_content(
+            model = "gemini-2.5-flash",
+            contents = [
+                    types.Part(
+                        inline_data = types.Blob(
+                            data = image_bytes,
+                            mime_type = 'image/jpeg'   
+                            )
+                        ),
+                    types.Part(text = prompt)
+            ],
+            config = types.GenerateContentConfig(
+                temperature = 0.5  
+                )
+        )
+        return response 
 
 def get_gemini_model() -> ModelExecutionWrapper | None:
     """
@@ -172,7 +214,7 @@ def generate_analysis_from_video_file(
         if uploaded_file_resource and uploaded_file_resource.name:
             try:
                 print(f"INFO: Intentando borrar el archivo {uploaded_file_resource.name} de Gemini después de su uso...")
-                gemini_client_instance.delete_file(name=uploaded_file_resource.name)
+                gemini_client_instance.files.delete(name=uploaded_file_resource.name)
                 print(f"INFO: Archivo {uploaded_file_resource.name} borrado de Gemini.")
             except Exception as e_del:
                 print(f"WARN: No se pudo borrar el archivo {uploaded_file_resource.name} de Gemini: {e_del}")

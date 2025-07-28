@@ -1,2 +1,9 @@
 .env
-src/output/
+outputs/*
+src/outputs/*
+tools/*
+src/agents/__pycache__/*
+src/states/__pycache__/*
+src/utils/__pycache__/*
+__pycache__/
+

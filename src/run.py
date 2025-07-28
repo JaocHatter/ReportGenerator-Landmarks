@@ -4,6 +4,7 @@ import json
 from states import MissionInputState, RobotPose
 from agents import PreprocessorAgent, AnalystAgent, IdentifierAgent, ReportGeneratorAgent
 import os
+import asyncio
 
 def load_sample_robot_poses(pose_file_path: str = None) -> list[RobotPose]:
     """Carga poses de un archivo JSON o devuelve datos de ejemplo."""
@@ -24,11 +25,39 @@ def load_sample_robot_poses(pose_file_path: str = None) -> list[RobotPose]:
         RobotPose(timestamp_ms=5000, x=5.0, y=0.5, orientation_degrees=20.0),
     ]
 
-def main(video_path: str, pose_data_path: str, mission_id: str):
-    start_time = time.time()
-    print(f"--- Iniciando Pipeline de Detección de Landmarks para Misión: {mission_id} ---")
+def print_ascii_art():
+    """
+    Prints ASCII art for "code provided by #Terrabots".
+    Font: Big
+    """
+    green_color = "\033[92m"
+    reset_color = "\033[0m"
+    art = f"""{green_color}
+    Landmarks detection Pipeline ERC 2025
+    code provided by
+    ----------------------------------------------------------------------------------------------------------------
+    ___  ___  _  _  ____    ____  ____  _  _  __  __  ____  _  _  ____  ____  ___  ____
+░▒▓████████▓▒░▒▓████████▓▒░▒▓███████▓▒░░▒▓███████▓▒░ ░▒▓██████▓▒░░▒▓███████▓▒░ ░▒▓██████▓▒░▒▓████████▓▒░▒▓███████▓▒░ 
+   ░▒▓█▓▒░   ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░  ░▒▓█▓▒░        
+   ░▒▓█▓▒░   ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░  ░▒▓█▓▒░        
+   ░▒▓█▓▒░   ░▒▓██████▓▒░ ░▒▓███████▓▒░░▒▓███████▓▒░░▒▓████████▓▒░▒▓███████▓▒░░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░   ░▒▓██████▓▒░  
+   ░▒▓█▓▒░   ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░         ░▒▓█▓▒░ 
+   ░▒▓█▓▒░   ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ ░▒▓█▓▒░         ░▒▓█▓▒░ 
+   ░▒▓█▓▒░   ░▒▓████████▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓███████▓▒░ ░▒▓██████▓▒░  ░▒▓█▓▒░  ░▒▓███████▓▒░  
 
-    base_output_dir = "output"
+    ----------------------------------------------------------------------------------------------------------------
+    {reset_color}                                                                                                              
+    """
+    print(art)
+
+async def main(video_path: str, pose_data_path: str, mission_id: str):
+    pipeline_start_time = time.time()
+    step_times = {}
+    
+    print_ascii_art()
+    print(f"---🚀 Starting landmark detection pipeline: {mission_id} ---")
+
+    base_output_dir = "outputs/output1"
     temp_segment_dir = os.path.join(base_output_dir, "temp_video_segments")
     landmark_image_dir = os.path.join(base_output_dir, "landmark_images")
     report_dir = os.path.join(base_output_dir, "reports")
@@ -39,7 +68,6 @@ def main(video_path: str, pose_data_path: str, mission_id: str):
     os.makedirs(report_dir, exist_ok=True)
     os.makedirs(map_image_dir, exist_ok=True)
 
-    # 1. Cargar datos de entrada (sin cambios)
     robot_poses = load_sample_robot_poses(pose_data_path)
     mission_input = MissionInputState(
         video_path=video_path,
@@ -47,53 +75,61 @@ def main(video_path: str, pose_data_path: str, mission_id: str):
         mission_id=mission_id
     )
 
-    # 2. Instanciar Agentes (actualizados)
     preprocessor = PreprocessorAgent(segment_output_dir=temp_segment_dir)
-    analyst = AnalystAgent() # Ya no necesita output_dir para frames
+    analyst = AnalystAgent() 
     identifier = IdentifierAgent(output_landmark_image_dir=landmark_image_dir)
     report_generator = ReportGeneratorAgent(output_dir=report_dir, map_image_dir=map_image_dir)
 
-
-    # 3. Ejecutar la cadena de agentes (con los nuevos estados)
-    print("\n--- Etapa 1: Preprocesamiento de Video/Segmentos ---")
-    # Ahora retorna List[PreprocessedVideoSegmentState]
+    print("\n---👁️ Step 1: Video Preprocessing ---")
+    step_start = time.time()
     preprocessed_video_segments = preprocessor.run(mission_input)
+    step_times['preprocessing'] = time.time() - step_start
     if not preprocessed_video_segments:
-        print("No se generaron segmentos de video preprocesados. Terminando.")
+        print("Segments from Videos were not found, killing process...")
         return
 
-    print(f"\n--- Etapa 2: Análisis de Video con Gemini (Puede tardar MUCHO) ---")
-    # Ahora retorna List[AnalyzedVideoSegmentState]
-    analyzed_segments = analyst.run(preprocessed_video_segments)
-    if not analyzed_segments: # Podría ser una lista vacía si no hay nada o error
-        print("El análisis de video no produjo resultados o falló. Revisar logs del AnalystAgent.")
+    print(f"\n---🤖 Step 2: Video Analysis with Gemini ---")
+    step_start = time.time()
+    analyzed_segments = await analyst.run(preprocessed_video_segments)
+    step_times['analysis'] = time.time() - step_start
+    if not analyzed_segments: 
+        print("Video Analysis has failed. Review AnalystAgents logs")
     
     found_any_observations = any(seg["identified_landmark_observations"] for seg in analyzed_segments)
-    if not found_any_observations and analyzed_segments: # Hay segmentos analizados, pero sin observaciones
-        print("AnalystAgent completado, pero no se encontraron observaciones de landmarks en los segmentos.")
+    if not found_any_observations and analyzed_segments: 
+        print("AnalystAgent completed, but no landmark observations were found in the segments.")
 
-    print("\n--- Etapa 3: Identificación y Contextualización de Landmarks ---")
+    print("\n---🧠 Step 3: Landmarks identification and contextualization ---")
+    step_start = time.time()
     all_poses_for_map = mission_input['robot_poses']
-    # Identifier ahora toma List[AnalyzedVideoSegmentState]
-    identified_batch = identifier.run(analyzed_segments, all_poses_for_map)
-
-    print("\n--- Etapa 4: Generación de Reporte ---")
+    identified_batch = await identifier.run(analyzed_segments, all_poses_for_map)
+    step_times['identification'] = time.time() - step_start
+    
+    print("\n---📖 Step 4: Report Generation ---")
+    step_start = time.time()
     report_file_path = report_generator.run(identified_batch)
+    step_times['report_generation'] = time.time() - step_start
 
-    end_time = time.time()
-    print(f"\n--- Pipeline Completado para Misión: {mission_id} ---")
-    print(f"Reporte generado en: {report_file_path}")
-    print(f"Tiempo total de ejecución: {end_time - start_time:.2f} segundos.")
-
+    pipeline_end_time = time.time()
+    total_time = pipeline_end_time - pipeline_start_time
+    
+    print(f"\n---✅ COMPLETED PIPELINE: {mission_id} ---")
+    print(f"Generated report: {report_file_path}")
+    print("\nStep-by-step timing:")
+    print(f"Step 1 - Preprocessing: {step_times['preprocessing']:.2f} seconds")
+    print(f"Step 2 - Analysis: {step_times['analysis']:.2f} seconds")
+    print(f"Step 3 - Identification: {step_times['identification']:.2f} seconds")
+    print(f"Step 4 - Report Generation: {step_times['report_generation']:.2f} seconds")
+    print(f"\nTotal pipeline time: {total_time:.2f} seconds")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Pipeline de Detección de Landmarks ERC 2025.")
-    parser.add_argument("video_path", help="Ruta al archivo de video de la misión.")
-    parser.add_argument("--pose_file", default=None, help="(Opcional) Ruta al archivo JSON con datos de pose del robot.")
-    parser.add_argument("--mission_id", default=f"mission_{int(time.time())}", help="ID único para esta corrida de la misión.")    
+    parser = argparse.ArgumentParser(description="Landmarks detection Pipeline ERC 2025")
+    parser.add_argument("video_path", help="Video path")
+    parser.add_argument("--pose_file", default=None, help="(optional) path to trajectory file in json ")
+    parser.add_argument("--mission_id", default=f"mission_{int(time.time())}", help="id")    
     args = parser.parse_args()
 
     if not os.path.exists(args.video_path):
-        print(f"Error: El archivo de video '{args.video_path}' no fue encontrado.")
+        print(f"Error: video in '{args.video_path}' was not found.")
     else:
-        main(args.video_path, args.pose_file, args.mission_id)
+        asyncio.run(main(args.video_path, args.pose_file, args.mission_id))
