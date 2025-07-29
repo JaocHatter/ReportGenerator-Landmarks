@@ -1,4 +1,4 @@
-# ReportGenerator-Landmarks
+# ReportGenerator-Landmarks (Beta)
 Report Generator for the Europe Rover Challenge 2025 \
 by Terrab🌎ts
 
