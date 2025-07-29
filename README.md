@@ -4,7 +4,7 @@ by Terrab🌎ts
 
 ![alt text](assets/flow.png)
 
-### How to run it?
+## How to run it?
 
 Without Trajectory
 ```bash
