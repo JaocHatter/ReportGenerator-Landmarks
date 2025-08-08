@@ -15,10 +15,10 @@ class AnalystAgent:
 
     def _build_prompt_for_video_analysis(self, segment_info: PreprocessedVideoSegmentState) -> str:
         prompt = f"""
-        Analyze the provided video segment, which covers the interval from `{segment_info['start_time_in_original_video_ms']}`ms to `{segment_info['end_time_in_original_video_ms']}` of the original mission video.
+        Analyze the provided video segment.
 
         **Primary Objective:**
-        Your task is to review the **ENTIRE** video segment and identify any objects that are clearly **NOT** natural Martian terrain (like rocks, sand, or dust).
+        Your task is to review the **ENTIRE** video segment and identify any objects that are clearly **NOT** natural Martian terrain.
 
         **Inclusion Criteria:**
         A candidate object **MUST MEET ALL** of the following conditions to be reported:

@@ -68,16 +68,18 @@ class IdentifierAgent:
                         except Exception as e_fallback:
                             print(f"Error _extract_specific_frame: Al guardar fotograma de fallback: {e_fallback}")
                             return False
-            print(f"Error _extract_specific_frame: No se pudo leer ningún fotograma útil del video {video_path} para el timestamp {timestamp_ms}ms.")
+            print(f"Error _extract_specific_frame: Was not possible to recover the fotogram from {video_path} for the timestamp {timestamp_ms}ms.")
             return False
 
-    def _build_contextual_analysis_prompt(self) -> str:
+    def _build_contextual_analysis_prompt(self, landmark_hint:str = None) -> str:
         """
         Constructs the prompt for the contextual analysis of the landmark by Gemini.
         """
         return f"""
         You are an expert in Mars exploration missions.
-        An object has been identified on Mars. An image of this object will be provided.
+        An object has been identified on Mars.
+        Object name: {landmark_hint if landmark_hint else "Unknown Object"}
+        An image of this object will be provided.
 
         Please provide a concise contextual analysis for the final report, STRICTLY following this format (No markdown):
         OBJECT_NAME: [Name or refined category of the object. Be specific if possible. E.g., "Handheld geological drill," "Scientific module control panel," "Heat shield fragment."]
@@ -97,7 +99,6 @@ class IdentifierAgent:
         """
         ctx_analysis = "Contextual Analysis not available"
 
-        # Eliminar bloques de código markdown si existen
         clean_text = response_text.strip()
         if clean_text.startswith("```") and clean_text.endswith("```"):
             clean_text = clean_text[3:-3].strip()
@@ -158,7 +159,6 @@ class IdentifierAgent:
         Procesa los segmentos de video analizados, identifica y contextualiza landmarks.
         """
         print(f"Identifier Agent: STARTING. Processing {len(analyzed_segments_batch)} segment(s) from analyzed video.")
-        confirmed_landmarks_list: List[ConfirmedLandmarkState] = []
         
         if not analyzed_segments_batch:
             print("Agente Identificador: No hay segmentos analizados para procesar.")
@@ -169,74 +169,85 @@ class IdentifierAgent:
             )
 
         mission_id = analyzed_segments_batch[0]["processed_segment_info"]['mission_id']
+        
+        pending_landmarks_data = []
+        prompts_for_api = []
 
         landmark_counter = 0
-        contextual_prompt = self._build_contextual_analysis_prompt()
-        segments_prompt_image = []
-        obs_landmarks = []
-
         for analyzed_segment in analyzed_segments_batch:
             segment_info = analyzed_segment["processed_segment_info"]
             original_video_segment_path = segment_info['video_segment_path']
-            # El timestamp de inicio del segmento actual dentro del video completo de la misión
             segment_start_time_in_mission_ms = segment_info['start_time_in_original_video_ms']
 
             if not analyzed_segment["identified_landmark_observations"]:
-                # print(f"Agente Identificador: Segmento {segment_info['video_segment_path']} no contiene observaciones de landmarks.")
                 continue
 
             for obs in analyzed_segment["identified_landmark_observations"]:
                 landmark_counter += 1
                 landmark_id_str = f"LM_{mission_id}_{landmark_counter:03d}"
-                
-                # Path para la imagen del landmark que se extraerá
+                contextual_prompt = self._build_contextual_analysis_prompt(obs["landmark_name"])
+
                 best_image_filename = f"{mission_id}_{landmark_id_str}.jpg"
                 best_image_filepath = os.path.join(self.output_landmark_image_dir, best_image_filename)
 
-                # Extraer el fotograma de mejor visibilidad del video/segmento original
                 extraction_success = self._extract_specific_frame(
                     video_path=original_video_segment_path,
                     timestamp_ms=obs['best_visibility_timestamp_in_segment_ms'],
                     output_image_path=best_image_filepath
                 )
                 
-                image_path_for_report = best_image_filepath if extraction_success else "path/to/default/no_image_extracted.jpg" 
+                if not extraction_success:
+                    print(f"Advertencia: No se pudo extraer la imagen para el landmark potencial en el timestamp {obs['best_visibility_timestamp_in_segment_ms']}ms. Omitiendo.")
+                    continue
 
-                # Calcular el timestamp global en la misión para la ubicación del landmark
+                image_path_for_report = best_image_filepath
                 landmark_timestamp_in_mission_ms = segment_start_time_in_mission_ms + obs['best_visibility_timestamp_in_segment_ms']
                 
-                # Encontrar la pose del robot más cercana a este timestamp global
                 estimated_lm_pose = self._find_closest_robot_pose(
                     target_timestamp_ms=landmark_timestamp_in_mission_ms,
                     all_poses=full_robot_path_poses
                 )
 
-                contextual_response_text = f"Contextual Analysis not available."
                 if self.gemini_model:
-                    with open(image_path_for_report, 'rb') as f:
-                        image_bytes = f.read()
-                        print(f"⏳ Identifier Agent: Solicitude to get a contextual analysis of the landamark: '{landmark_id_str}'")
-                        segments_prompt_image.append((contextual_prompt, image_bytes))
-                        obs_landmarks.append(obs)
-                
-        responses = await self.identify_responses(segments_prompt_image)
+                    try:
+                        with open(image_path_for_report, 'rb') as f:
+                            image_bytes = f.read()
+                            print(f"⏳ Identifier Agent: Preparing contextual analysis for '{landmark_id_str}'")
+                            
+                            prompts_for_api.append((contextual_prompt, image_bytes))
+                            
+                            pending_landmarks_data.append({
+                                "landmark_id": landmark_id_str,
+                                "image_path": image_path_for_report,
+                                "pose": estimated_lm_pose,
+                                "timestamp": landmark_timestamp_in_mission_ms
+                            })
+                    except FileNotFoundError:
+                        print(f"Error: No se encontró el archivo de imagen extraído en {image_path_for_report}. Omitiendo landmark.")
+                        continue
+        
+        if not pending_landmarks_data:
+            print(f"Agente Identificador: No se encontraron landmarks válidos para procesar en la misión {mission_id}.")
+            return IdentifiedLandmarksBatchState(mission_id=mission_id, confirmed_landmarks=[], full_robot_path_poses=full_robot_path_poses)
+            
+        responses = await self.identify_responses(prompts_for_api)
 
-        for response, obs in zip(responses, obs_landmarks):
-            # Parsear la respuesta contextual
+        confirmed_landmarks_list: List[ConfirmedLandmarkState] = []
+        for response, landmark_data in zip(responses, pending_landmarks_data):
             obj_name, det_desc, ctx_analysis = self._parse_contextual_response(response.text)
 
             confirmed_lm = ConfirmedLandmarkState(
-                landmark_id=landmark_id_str,
+                landmark_id=landmark_data["landmark_id"],
                 mission_id=mission_id,
-                best_image_path=image_path_for_report,
+                best_image_path=landmark_data["image_path"],
                 object_name_or_category=obj_name,
                 detailed_visual_description=det_desc,
                 contextual_analysis=ctx_analysis,
-                estimated_location=estimated_lm_pose,
-                frames_observed_timestamps=[landmark_timestamp_in_mission_ms], # Timestamp global de mejor visibilidad
+                estimated_location=landmark_data["pose"],
+                frames_observed_timestamps=[landmark_data["timestamp"]],
             )
             confirmed_landmarks_list.append(confirmed_lm)
-            print(f"Agente Identificador: Landmark '{landmark_id_str}' procesado. Nombre: '{obj_name}'.")
+            print(f"✅ Agente Identificador: Landmark '{landmark_data['landmark_id']}' procesado. Nombre: '{obj_name}'.")
                 
         if not confirmed_landmarks_list:
             print(f"Agente Identificador: No se confirmaron landmarks para la misión {mission_id} después de procesar todos los segmentos.")
