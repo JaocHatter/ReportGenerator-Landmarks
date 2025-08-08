@@ -1,30 +1,118 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict
+
+import markdown2
+from weasyprint import HTML, CSS
+
 from states import (
     IdentifiedLandmarksBatchState, ConfirmedLandmarkState, RobotPose
 )
 
 import matplotlib
-matplotlib.use('Agg') # To prevent GUI issues on servers
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 class ReportGeneratorAgent:
-    def __init__(self, output_dir: str = "output/reports", map_image_dir: str = "output/map_images", landmark_image_dir: str = "output/landmark_images"):
+    def __init__(self, 
+                 output_dir: str = "output/reports", 
+                 map_image_dir: str = "output/map_images", 
+                 landmark_image_dir: str = "output/landmark_images",
+                 generate_pdf: bool = True): 
+        """
+        Initializes the agent.
+
+        Args:
+            output_dir (str): Directory to save final reports (.md and .pdf).
+            map_image_dir (str): Directory to save map images.
+            landmark_image_dir (str): Directory where landmark photos are stored.
+            generate_pdf (bool): If True, a PDF report will be generated alongside the Markdown.
+        """
         self.output_dir = output_dir
         self.map_image_dir = map_image_dir
-        self.landmark_image_dir = landmark_image_dir 
+        self.landmark_image_dir = landmark_image_dir
+        self.generate_pdf = generate_pdf 
 
         os.makedirs(self.output_dir, exist_ok=True)
         os.makedirs(self.map_image_dir, exist_ok=True)
 
+    def _convert_md_to_pdf(self, markdown_filepath: str, pdf_filepath: str):
+        """Converts a given Markdown file to a PDF with sections on new pages."""
+        print(f"Starting PDF conversion for: {markdown_filepath}")
+        
+        try:
+            with open(markdown_filepath, 'r', encoding='utf-8') as f:
+                md_content = f.read()
+
+            css_style = """
+            @page {
+                size: A4;
+                margin: 1in;
+            }
+            body {
+                font-family: 'Helvetica', sans-serif;
+                line-height: 1.6;
+                font-size: 11pt;
+            }
+            h1 {
+                text-align: center;
+                border-bottom: 3px solid #004a80;
+                padding-bottom: 15px;
+                color: #004a80;
+                font-size: 24pt;
+            }
+            h2 {
+                page-break-before: always; /* The key to section-per-page */
+                border-bottom: 1.5px solid #cccccc;
+                padding-top: 15px;
+                color: #004a80;
+                font-size: 18pt;
+            }
+            h3 {
+                color: #333333;
+                font-size: 14pt;
+                margin-top: 25px;
+            }
+            img {
+                max-width: 90%;
+                height: auto;
+                display: block;
+                margin-left: auto;
+                margin-right: auto;
+                border: 1px solid #ddd;
+                padding: 5px;
+                border-radius: 4px;
+            }
+            code {
+                background-color: #f0f0f0;
+                padding: 2px 5px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+            }
+            ul {
+                list-style-type: disc;
+                padding-left: 20px;
+            }
+            """
+            
+            html_body = markdown2.markdown(md_content, extras=['fenced-code-blocks', 'tables', 'cuddled-lists'])
+
+            # Combine into a full HTML document
+            full_html = f"<!DOCTYPE html><html><head><meta charset='UTF-8'><style>{css_style}</style></head><body>{html_body}</body></html>"
+
+            base_url = os.path.dirname(markdown_filepath)
+            HTML(string=full_html, base_url=base_url).write_pdf(pdf_filepath)
+            
+            print(f"✅ PDF report generated successfully: {pdf_filepath}")
+
+        except Exception as e:
+            print(f"❌ Error generating PDF: {e}")
+
     def _generate_map_image(self, robot_path: List[RobotPose], landmarks: List[ConfirmedLandmarkState], mission_id: str) -> Optional[str]:
-        """Generates a simple map image and saves it, returning the relative path for Markdown."""
         map_filename = f"map_{mission_id}.png"
         map_abs_path = os.path.join(self.map_image_dir, map_filename)
         map_relative_path = os.path.join("..", "map_images", map_filename)
 
-
-        plt.figure(figsize=(10, 8)) # Slightly larger for better detail
+        plt.figure(figsize=(10, 8))
         if robot_path:
             path_x = [p['x'] for p in robot_path]
             path_y = [p['y'] for p in robot_path]
@@ -36,7 +124,7 @@ class ReportGeneratorAgent:
             lm_ids = [lm['landmark_id'] for lm in landmarks]
             plt.scatter(lm_x, lm_y, c='red', marker='X', s=120, label="Landmarks", edgecolors='black', linewidth=0.5)
             for i, txt in enumerate(lm_ids):
-                plt.annotate(txt, (lm_x[i], lm_y[i]), textcoords="offset points", xytext=(0,10), ha='center', fontsize=9, color='black')
+                plt.annotate(txt, (lm_x[i], lm_y[i]), textcoords="offset points", xytext=(0,10), ha='center', fontsize=9)
 
         plt.title(f"Marsyard Map - Mission: {mission_id}", fontsize=16)
         plt.xlabel("X Coordinate (m)", fontsize=12)
@@ -44,23 +132,23 @@ class ReportGeneratorAgent:
         plt.legend(fontsize=10)
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.axis('equal')
-        plt.tight_layout() # Adjust layout so everything fits well
+        plt.tight_layout()
         try:
             plt.savefig(map_abs_path)
             plt.close()
-            print(f"Map generated and saved to: {map_abs_path}")
             return map_relative_path
         except Exception as e:
             print(f"Error generating or saving map: {e}")
             plt.close()
-            return None # Indicate that the map could not be generated
+            return None
 
-    def _prepare_markdown_content(self, batch_state: IdentifiedLandmarksBatchState) -> List[str]:
-        """Prepares the report content as a list of Markdown strings."""
+    def _prepare_markdown_content(self, batch_state: IdentifiedLandmarksBatchState) -> str:
+        """Prepares the full report content as a single Markdown string."""
         markdown_lines: List[str] = []
         mission_id = batch_state['mission_id']
 
         markdown_lines.append(f"# ERC 2025 Mission Report: {mission_id}")
+        
         markdown_lines.append("\n## General Findings\n")
         markdown_lines.append(f"- **Total Landmarks Found:** {len(batch_state['confirmed_landmarks'])}")
         
@@ -79,81 +167,69 @@ class ReportGeneratorAgent:
         else:
             markdown_lines.append("*Could not generate map image.*\n")
 
-        markdown_lines.append("\n---\n---\n") # More prominent separator
-
-        # --- Individual Landmark Sections ---
         if not batch_state['confirmed_landmarks']:
             markdown_lines.append("\n**No landmarks confirmed in this mission.**\n")
         
         for lm in batch_state['confirmed_landmarks']:
             markdown_lines.append(f"\n## Landmark Detail: {lm['landmark_id']}\n")
-
-            # Landmark image path
-            # We assume lm['best_image_path'] is an absolute path or relative to the execution directory.
-            # We need to make it relative to the Markdown report directory.
-            # If lm['best_image_path'] is 'output/landmark_images/LM_mission_001.jpg'
-            # and the report is in 'output/reports/report.md', the relative path is '../landmark_images/...'
+            
             if lm['best_image_path'] and os.path.exists(lm['best_image_path']):
-                try:
-                    # Build relative path from output_dir to landmark_image_dir
-                    # landmark_image_relative_path = os.path.relpath(lm['best_image_path'], self.output_dir)
-                    # This is simpler if we assume a fixed structure:
-                    landmark_image_filename = os.path.basename(lm['best_image_path'])
-                    landmark_image_display_path = os.path.join("..", "landmark_images", landmark_image_filename).replace("\\", "/")
-                    markdown_lines.append(f"![Photo of Landmark {lm['landmark_id']}]({landmark_image_display_path})\n")
-                except Exception as e_img:
-                     markdown_lines.append(f"*Could not generate link for landmark photo {lm['landmark_id']}: {e_img} (Original path: {lm['best_image_path']})*\n")
+                landmark_image_filename = os.path.basename(lm['best_image_path'])
+                landmark_image_display_path = os.path.join("..", "landmark_images", landmark_image_filename).replace("\\", "/")
+                markdown_lines.append(f"![Photo of Landmark {lm['landmark_id']}]({landmark_image_display_path})\n")
             else:
-                markdown_lines.append(f"*Photo of landmark {lm['landmark_id']} not available or incorrect path ({lm['best_image_path']}).*\n")
+                markdown_lines.append(f"*Photo of landmark {lm['landmark_id']} not available or path not found.*\n")
 
             markdown_lines.append(f"- **Name/Category:** {lm['object_name_or_category']}")
-            
-            # Handle multiline descriptions and analyses
             markdown_lines.append("- **Detailed Visual Description:**")
             for line in lm['detailed_visual_description'].split('\n'):
-                markdown_lines.append(f"  {line}") # Indented for clarity as sub-item
-
+                if line.strip(): markdown_lines.append(f"  > {line}") # Using blockquote for better formatting
+            
             markdown_lines.append("- **Martian Contextual Analysis:**")
             for line in lm['contextual_analysis'].split('\n'):
-                markdown_lines.append(f"  {line}")
+                if line.strip(): markdown_lines.append(f"  > {line}")
 
             markdown_lines.append("- **Estimated Location (Robot Pose):**")
-            markdown_lines.append(f"    - Timestamp: {lm['estimated_location']['timestamp_ms']} ms")
-            markdown_lines.append(f"    - X: {lm['estimated_location']['x']:.2f} m, Y: {lm['estimated_location']['y']:.2f} m")
-            markdown_lines.append(f"    - Orientation: {lm['estimated_location']['orientation_degrees']:.1f}°")
-            
-            markdown_lines.append("\n---\n") # Separator between landmarks
+            markdown_lines.append(f"  - Timestamp: {lm['estimated_location']['timestamp_ms']} ms")
+            markdown_lines.append(f"  - X: {lm['estimated_location']['x']:.2f} m, Y: {lm['estimated_location']['y']:.2f} m")
+            markdown_lines.append(f"  - Orientation: {lm['estimated_location']['orientation_degrees']:.1f}°")
 
-        return markdown_lines
+        return "\n".join(markdown_lines)
 
-    def generate_markdown_report(self, markdown_content: List[str], mission_id: str) -> str:
-        """Generates the Markdown report and saves it to a .md file."""
+    def generate_markdown_report(self, markdown_content: str, mission_id: str) -> str:
+        """Saves the Markdown content to a .md file and returns the path."""
         report_filename_md = f"ERC2025_Report_{mission_id}.md"
         report_filepath = os.path.join(self.output_dir, report_filename_md)
 
         try:
             with open(report_filepath, "w", encoding="utf-8") as f:
-                for line in markdown_content:
-                    f.write(line + "\n") # Ensure new line for each list item
-            print(f"Markdown report generated: {report_filepath}")
+                f.write(markdown_content)
+            print(f"📄 Markdown report generated: {report_filepath}")
             return report_filepath
         except Exception as e:
-            print(f"Error writing Markdown file: {e}")
-            return "" # Return empty string or None in case of error
+            print(f"❌ Error writing Markdown file: {e}")
+            return ""
 
-    def run(self, identified_landmarks_batch: IdentifiedLandmarksBatchState) -> str:
+    def run(self, identified_landmarks_batch: IdentifiedLandmarksBatchState) -> Dict[str, Optional[str]]:
         """
-        Orchestrates content preparation and Markdown file generation.
-        Returns the path to the generated Markdown file.
+        Orchestrates content preparation and generation of Markdown and PDF files.
+        Returns a dictionary with paths to the generated files.
         """
         if not identified_landmarks_batch or not identified_landmarks_batch.get('mission_id'):
             print("Report Generator Agent: Invalid input data or missing mission_id.")
-            return "Could not generate report due to invalid input data."
-
-        print(f"Report Generator Agent (Markdown): Starting for mission {identified_landmarks_batch['mission_id']}...")
+            return {"markdown": None, "pdf": None}
         
-        markdown_content_list = self._prepare_markdown_content(identified_landmarks_batch)
-        report_file_path = self.generate_markdown_report(markdown_content_list, identified_landmarks_batch['mission_id'])
+        mission_id = identified_landmarks_batch['mission_id']
+        print(f"Report Generator Agent: Starting for mission {mission_id}...")
         
-        print(f"Report Generator Agent (Markdown): Finished.")
-        return report_file_path
+        markdown_full_content = self._prepare_markdown_content(identified_landmarks_batch)
+        
+        md_report_path = self.generate_markdown_report(markdown_full_content, mission_id)
+        
+        pdf_report_path = None
+        if self.generate_pdf and md_report_path:
+            pdf_report_path = md_report_path.replace(".md", ".pdf")
+            self._convert_md_to_pdf(md_report_path, pdf_report_path)
+        
+        print(f"Report Generator Agent: Finished mission {mission_id}.")
+        return {"markdown": md_report_path, "pdf": pdf_report_path}
