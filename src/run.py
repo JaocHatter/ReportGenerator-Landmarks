@@ -55,6 +55,9 @@ async def main(video_path: str, pose_data_path: str, mission_id: str):
     step_times = {}
     
     print_ascii_art()
+    print("made with ❤️")
+    print("from 🟥⬜🟥")
+
     print(f"---🚀 Starting landmark detection pipeline: {mission_id} ---")
 
     base_output_dir = "outputs/output1"
