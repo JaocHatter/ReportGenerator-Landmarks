@@ -201,7 +201,7 @@ class IdentifierAgent:
                     continue
 
                 image_path_for_report = best_image_filepath
-                landmark_timestamp_in_mission_ms = segment_start_time_in_mission_ms + obs['best_visibility_timestamp_in_segment_ms']
+                landmark_timestamp_in_mission_ms = obs['best_visibility_timestamp_in_segment_ms'] # segment_start_time_in_mission_ms + obs['best_visibility_timestamp_in_segment_ms']
                 
                 estimated_lm_pose = self._find_closest_robot_pose(
                     target_timestamp_ms=landmark_timestamp_in_mission_ms,

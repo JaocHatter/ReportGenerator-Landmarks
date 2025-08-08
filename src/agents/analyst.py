@@ -50,8 +50,10 @@ class AnalystAgent:
         LANDMARK_OBSERVATION_END
         ```
 
-        If **NO** objects meeting **ALL** the above criteria are found in the entire segment, your **ONLY** response should be:
+        Considerations:
+        - If **NO** objects meeting **ALL** the above criteria are found in the entire segment, your **ONLY** response should be:
         `No significant landmarks found in this segment.`
+        - The timestamp will appear in the upper central part of the video segment, writte it in milliseconds.
         """
         return prompt
 

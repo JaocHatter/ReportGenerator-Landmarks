@@ -2,6 +2,7 @@
 import os
 import subprocess
 import json
+import cv2
 from typing import List, Optional
 from states import MissionInputState, RobotPose
 from states.preprocessed_video_segment_state import PreprocessedVideoSegmentState
@@ -35,6 +36,49 @@ class PreprocessorAgent:
             print(f"Error parsing the video duration: {e}. Output: {result.stdout}")
             return None
 
+    def _write_timestamp_on_video(self, input_path: str, output_path: str) -> bool:
+        cap = cv2.VideoCapture(input_path)
+        if not cap.isOpened():
+            print(f"Error: No se pudo abrir el video de entrada en {input_path}")
+            return False
+
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+        if not writer.isOpened():
+            print(f"Error: No se pudo crear el archivo de video de salida en {output_path}")
+            cap.release()
+            return False
+
+        print(f"✍️  Escribiendo timestamps en el video. Fuente: {input_path}")
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret: break
+            
+            timestamp_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
+            seconds = int(timestamp_ms / 1000)
+            ms = int(timestamp_ms % 1000)
+            minutes = seconds // 60
+            hours = minutes // 60
+            timestamp_text = f"{hours:02d}:{minutes % 60:02d}:{seconds % 60:02d}.{ms:03d}"
+            
+            text_size = cv2.getTextSize(timestamp_text, font, 1, 2)[0]
+            text_x = (width - text_size[0]) // 2
+            text_y = text_size[1] + 10
+            
+            cv2.putText(frame, timestamp_text, (text_x, text_y), font, 1, (255, 255, 255), 2)
+            writer.write(frame)
+
+        print("✅ Proceso de escritura de timestamps completado.")
+        cap.release()
+        writer.release()
+        return True
+
     def _get_poses_for_segment(
         self,
         segment_start_ms: int,
@@ -55,19 +99,27 @@ class PreprocessorAgent:
         if not os.path.exists(video_path):
             print(f"Error: The video file does not exist at {video_path}")
             return []
+        
+        timestamped_video_filename = f"{mission_id}_with_timestamp.mp4"
+        timestamped_video_path = os.path.join(self.segment_output_dir, timestamped_video_filename)
+        
+        if not self._write_timestamp_on_video(video_path, timestamped_video_path):
+            print("Error: Could not write timestamps on the video. Segmentation cannot proceed.")
+            return []
 
-        total_duration_seconds = self._get_video_duration_seconds(video_path)
+        video_path_for_segmentation = timestamped_video_path
+        total_duration_seconds = self._get_video_duration_seconds(video_path_for_segmentation)
         if total_duration_seconds is None:
-            print(f"Could not determine the duration of the video {video_path}. Segmentation cannot proceed.")
+            print(f"Could not determine the duration of the video {video_path_for_segmentation}. Segmentation cannot proceed.")
             # As a fallback, you could process the full video as before, or fail.
             # For now, we'll fail the segmentation.
             return []
 
         if total_duration_seconds <= 0:
-            print(f"The duration of the video {video_path} is 0 or invalid. Segmentation cannot proceed.")
+            print(f"The duration of the video {video_path_for_segmentation} is 0 or invalid. Segmentation cannot proceed.")
             return []
 
-        print(f"Total duration of the video '{video_path}': {total_duration_seconds:.2f} seconds.")
+        print(f"Total duration of the video '{video_path_for_segmentation}': {total_duration_seconds:.2f} seconds.")
 
         num_segments = int(total_duration_seconds // self.SEGMENT_DURATION_SECONDS) + \
                        (1 if total_duration_seconds % self.SEGMENT_DURATION_SECONDS > 0 else 0)
@@ -85,7 +137,7 @@ class PreprocessorAgent:
             if current_segment_duration <= 0: # Evitar segmentos de duración cero si algo salió mal
                 continue
 
-            segment_filename = f"{mission_id}_segment_{i+1:03d}_{os.path.basename(video_path)}"
+            segment_filename = f"{mission_id}_segment_{i+1:03d}_{os.path.basename(video_path_for_segmentation)}"
             output_segment_path = os.path.join(self.segment_output_dir, segment_filename)
 
             print(f"Processing {i+1}/{num_segments} segment: from {segment_start_seconds}s to {segment_start_seconds + current_segment_duration}s")
@@ -99,7 +151,7 @@ class PreprocessorAgent:
             cmd = [
                 "ffmpeg",
                 "-y",  # Sobrescribir archivo de salida si existe
-                "-i", video_path,
+                "-i", video_path_for_segmentation,
                 "-ss", str(segment_start_seconds),
                 "-t", str(current_segment_duration),
                 "-c:v", "libx264", # Codec de video especificado
@@ -145,7 +197,7 @@ class PreprocessorAgent:
         if not video_segments_for_analysis and total_duration_seconds > 0:
             print(f"Warning: No video segments were generated, but the original video had duration. Check the ffmpeg logs.")
         elif video_segments_for_analysis:
-            print(f"Preprocessor Agent: Video '{video_path}' segmented into {len(video_segments_for_analysis)} part(s).")
+            print(f"Preprocessor Agent: Video '{video_path_for_segmentation}' segmented into {len(video_segments_for_analysis)} part(s).")
 
         return video_segments_for_analysis
 
