@@ -30,7 +30,7 @@ except Exception as e_global_init:
 
 
 # User-specified model name - DO NOT CHANGE
-MODEL_NAME = "gemini-2.5-flash-preview-05-20"
+MODEL_NAME = "gemini-2.5-flash"
 
 class ModelExecutionWrapper:
     """
@@ -76,7 +76,7 @@ class ModelExecutionWrapper:
                     types.Part(text = prompt)
             ],
             config = types.GenerateContentConfig(
-                temperature = 0.5  
+                temperature = 0.2  
                 )
         )
         return response 
@@ -94,7 +94,7 @@ class ModelExecutionWrapper:
                     types.Part(text = prompt)
             ],
             config = types.GenerateContentConfig(
-                temperature = 0.5  
+                temperature = 0.2 
                 )
         )
         return response 
