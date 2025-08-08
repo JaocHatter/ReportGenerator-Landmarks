@@ -6,7 +6,7 @@ by Terrab🌎ts
 
 ## How to run it?
 
-1. Go to ![Google AI Studio](https://aistudio.google.com)
+1. Go to [Google AI Studio](https://aistudio.google.com)
 2. Get you API Key and then save it in your environment as
 ```bash
 export GOOGLE_API_KEY="you_api_key"
