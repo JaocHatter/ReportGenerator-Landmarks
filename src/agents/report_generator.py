@@ -152,10 +152,10 @@ class ReportGeneratorAgent:
         markdown_lines.append("\n## General Findings\n")
         markdown_lines.append(f"- **Total Landmarks Found:** {len(batch_state['confirmed_landmarks'])}")
         
-        llm_summary = "Mission summary by LLM (implementation with Gemini pending)."
-        markdown_lines.append(f"- **Mission Summary (LLM):** {llm_summary}\n")
+        #llm_summary = "Mission summary by LLM (implementation with Gemini pending)."
+        #markdown_lines.append(f"- **Mission Summary (LLM):** {llm_summary}\n")
 
-        markdown_lines.append("### Mission Map\n")
+        markdown_lines.append("\n### Mission Map\n")
         map_relative_path = self._generate_map_image(
             batch_state['full_robot_path_poses'],
             batch_state['confirmed_landmarks'],
