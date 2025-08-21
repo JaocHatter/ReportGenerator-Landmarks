@@ -1,0 +1,3 @@
+# Manual Report Generator API
+### How it works?
+...
