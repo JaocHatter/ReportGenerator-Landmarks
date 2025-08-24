@@ -6,3 +6,5 @@ reportlab
 matplotlib 
 weasyprint
 markdown2
+google-genai
+fastapi[standard]
