@@ -4,28 +4,43 @@ from typing import Optional
 
 class Position(BaseModel):
     """
-    Represents a 3D position of the rover or a landmark.
+    Representa una posición 3D del rover o un landmark.
     """
-    x: float = Field(..., description="X-coordinate in meters")
-    y: float = Field(..., description="Y-coordinate in meters")
-    z: float = Field(..., description="Z-coordinate in meters")
+    x: float = Field(..., description="Coordenada X en metros")
+    y: float = Field(..., description="Coordenada Y en metros")
+    z: float = Field(..., description="Coordenada Z en metros")
 
 class LandmarkMetadata(BaseModel):
     """
-    Represents the metadata sent alongside the landmark image during the request.
+    Representa los metadatos enviados junto con la imagen del landmark durante la solicitud.
     """
     position: Position
-    timestamp: float = Field(default_factory=time.time, description="Unix timestamp of when the image was captured.")
+    timestamp: float = Field(default_factory=time.time, description="Timestamp Unix de cuando se capturó la imagen.")
 
 class Landmark(BaseModel):
     """
-    Represents a fully analyzed and confirmed landmark record.
-    This is the main data model stored in our application state.
+    Representa un registro de landmark completamente analizado y confirmado.
+    Este es el modelo de datos principal almacenado en el estado de nuestra aplicación.
     """
-    id: str = Field(..., description="Unique identifier for the landmark (e.g., LM_1724298858_a3b1).")
-    name: str = Field(..., description="The name or category of the object, as identified by the model.")
-    location: Position = Field(..., description="The estimated 3D position of the landmark.")
-    timestamp: float = Field(..., description="Unix timestamp of the observation.")
-    best_image_path: Optional[str] = Field(None, description="File path to the best image of the landmark.")
-    detailed_description: Optional[str] = Field(None, description="A detailed visual description from the model.")
-    contextual_analysis: Optional[str] = Field(None, description="Contextual analysis regarding the object's origin, utility, and importance.")
+    id: str = Field(..., description="Identificador único para el landmark (ej., LM_1724298858_a3b1).")
+    name: str = Field(..., description="El nombre o categoría del objeto, según lo identificado por el modelo.")
+    location: Position = Field(..., description="La posición 3D estimada del landmark.")
+    timestamp: float = Field(..., description="Timestamp Unix de la observación.")
+    best_image_path: Optional[str] = Field(None, description="Ruta del archivo a la mejor imagen del landmark.")
+    detailed_description: Optional[str] = Field(None, description="Una descripción visual detallada del modelo.")
+    contextual_analysis: Optional[str] = Field(None, description="Análisis contextual sobre el origen, utilidad e importancia del objeto.")
+
+class Orientation(BaseModel):
+    """Define la orientación del rover."""
+    roll: float
+    pitch: float
+    yaw: float
+
+class Pose(BaseModel):
+    """Combina la posición y orientación del rover."""
+    position: Position
+    orientation: Orientation
+
+class PoseData(BaseModel):
+    """El modelo raíz para los datos de pose recibidos."""
+    pose: Pose

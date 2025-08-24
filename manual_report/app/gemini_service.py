@@ -20,19 +20,17 @@ class GeminiService:
         Constructs the detailed prompt for landmark analysis, similar to the IdentifierAgent.
         """
         return """
-        You are an expert analyst specializing in Mars exploration.
-        An image of a potential landmark found on Mars will be provided.
+        You are a highly precise analytical AI for a Mars rover mission.
+        An image of a potential landmark is provided.
+        Your task is to provide a SUCCINCT and TECHNICAL analysis.
+        You MUST STRICTLY follow this format, without any markdown or extra text. Be brief.
 
-        Your task is to provide a concise contextual analysis.
-        You MUST STRICTLY follow this format, without any markdown or extra text:
-
-        OBJECT_NAME: [Name or refined category of the object. Be specific. E.g., "Handheld geological drill," "Scientific module control panel," "Heat shield fragment."]
-        DETAILED_DESCRIPTION: [Briefly elaborate on the observed visual description, adding inferred details if logical.]
-        CONTEXTUAL_ANALYSIS: [
-        - Probable origin: Is it natural to Mars? If not, could it be from a previous or current mission?
-        - Potential utility: Could this object be useful for the current rover mission or future missions? How?
-        - Relevance/Importance: How significant is this finding in the context of Mars exploration?
-        ]
+        OBJECT_NAME: [Specific, technical name for the object. E.g., "Handheld geological drill," "Scientific module control panel," "Heat shield fragment."]
+        DETAILED_DESCRIPTION: [A single, concise sentence describing the object's key physical features. Focus on material, shape, and condition.]
+        CONTEXTUAL_ANALYSIS: [A brief, point-form analysis. Answer each point in a single, short sentence.]
+        - Probable origin:
+        - Potential utility:
+        - Relevance/Importance:
         """
 
     def _parse_contextual_response(self, response_text: str) -> Dict[str, str]:
