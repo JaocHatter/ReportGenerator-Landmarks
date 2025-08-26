@@ -12,6 +12,7 @@ class ReportGenerator:
     Class to handle the generation of mission reports, including map creation and PDF conversion.
     """
     def __init__(self, landmarks_data: List[Dict[str, Any]], trajectory_data_path: str):
+        # --- REFACTOR: Paths are now relative to the project root ---
         self.REPORTS_DIR = "output"
         self.ASSETS_DIR = "assets"
         self.LOGO_PATH = os.path.join(self.ASSETS_DIR, "logo.png")
@@ -107,8 +108,31 @@ class ReportGenerator:
     def _convert_md_to_pdf(self, md_content: str):
         """Converts the Markdown content to a PDF file."""
         logo_uri = self._image_to_base64_uri(self.LOGO_PATH) if os.path.exists(self.LOGO_PATH) else ""
+        
+        # --- MODIFICATION START ---
+        current_date = time.strftime('%m/%d/%Y')
         css_style = f"""
-            @page {{ size: A4; margin: 1in; @top-left {{ content: 'ERC 2025 Mission Report'; font-size: 9pt; color: #888; }} @top-right {{ content: url('{logo_uri}'); transform: scale(0.4); position: absolute; top: -20px; right: 0; }} @bottom-center {{ content: "Page " counter(page) " of " counter(pages); font-size: 9pt; color: #888; }} }}
+            @page {{ 
+                size: A4; 
+                margin: 1in;
+                @top-left {{ 
+                    content: 'ERC 2025 Mission Report | {current_date}'; 
+                    font-size: 9pt; 
+                    color: #888; 
+                }}
+                @top-right {{ 
+                    content: url('{logo_uri}'); 
+                    transform: scale(0.4); 
+                    position: absolute; 
+                    top: -20px; 
+                    right: -40px; /* Moved further to the right */
+                }}
+                @bottom-center {{ 
+                    content: "Page " counter(page) " of " counter(pages); 
+                    font-size: 9pt; 
+                    color: #888; 
+                }}
+            }}
             body {{ font-family: 'Helvetica', sans-serif; font-size: 11pt; line-height: 1.4; }} 
             h1 {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 25px; }} 
             h2 {{ page-break-before: always; border-bottom: 1px solid #ccc; padding-top: 15px; font-size: 16pt; bookmark-level: 1; }} 
@@ -121,8 +145,8 @@ class ReportGenerator:
             .toc-table td {{ padding: 6px 0; border-bottom: 1px dotted #999; }}
             .toc-table td:last-child {{ text-align: right; font-weight: bold; }}
         """
+        # --- MODIFICATION END ---
         
-        # Pass 1: Render to find page numbers
         html_body_pass1 = markdown2.markdown(md_content, extras=['fenced-code-blocks', 'markdown-in-html', 'header-ids'])
         full_html_pass1 = f"<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body>{html_body_pass1}</body></html>"
         doc = HTML(string=full_html_pass1).render(stylesheets=[CSS(string=css_style)])
@@ -134,7 +158,6 @@ class ReportGenerator:
                     landmark_id = label.replace("Landmark:", "").strip()
                     toc_entries.append({'id': landmark_id, 'page': page_num})
 
-        # Pass 2: Build the TOC and render the final PDF
         toc_html = ""
         if toc_entries:
             toc_html = '<div class="toc-table"><h2>Table of Contents</h2><table>'

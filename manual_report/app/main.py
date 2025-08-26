@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
 import os
 import logging
 from typing import List
@@ -26,10 +26,10 @@ async def lifespan(app: FastAPI):
     
     GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
     if not GEMINI_API_KEY:
-        raise ValueError("GOOGLE_API_KEY environment variable not set.")
+        raise ValueError("GOOGLE_API_KEY environment variable is not set.")
     
     app.state.gemini_service = GeminiService(api_key=GEMINI_API_KEY)
-    app.state.landmarks = [] 
+    app.state.landmarks = [] # In-memory storage for landmarks
     logger.info("Application startup complete.")
     yield
     logger.info("Application shutdown.")
@@ -95,10 +95,10 @@ async def get_all_landmarks(request: Request):
     """Returns all stored landmark data."""
     return request.app.state.landmarks
 
-@app.get("/generate_report/", response_class=FileResponse)
-async def generate_full_report(request: Request):
+@app.get("/generate_report/", response_model=dict)
+async def generate_and_save_report(request: Request):
     """
-    Generates a full PDF mission report and returns it as a downloadable file.
+    Generates a full PDF mission report and saves it locally in the app/output directory.
     """
     landmarks = request.app.state.landmarks
     if not landmarks:
@@ -113,16 +113,13 @@ async def generate_full_report(request: Request):
         pdf_filepath = report_generator.generate_report()
         
         if not os.path.exists(pdf_filepath):
-            raise HTTPException(status_code=500, detail="Report file was not created.")
+            raise HTTPException(status_code=500, detail="The report file was not created.")
 
-        return FileResponse(
-            path=pdf_filepath,
-            filename=os.path.basename(pdf_filepath),
-            media_type='application/pdf',
-            background=BackgroundTask(os.remove, pdf_filepath) 
-        )
+        return {
+            "status": "success",
+            "message": "Report generated and saved successfully.",
+            "filepath": pdf_filepath
+        }
     except Exception as e:
         logger.error(f"Failed to generate report: {e}")
         raise HTTPException(status_code=500, detail=f"An internal error occurred during report generation: {e}")
-
-from starlette.background import BackgroundTask
